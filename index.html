@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Students Data</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 40px;
+      color: #333;
+    }
+    h2 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+    form {
+      background: #ffffff;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto 30px auto;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: 0.3s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 6px rgba(52, 152, 219, 0.4);
+    }
+    button {
+      padding: 12px 18px;
+      border: none;
+      background: #3498db;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2c80b4;
+    }
+    table {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #3498db;
+      color: #fff;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    tr:hover {
+      background: #eef6fc;
+    }
+    td button {
+      margin-right: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+    }
+    td button:first-child {
+      background: #27ae60;
+    }
+    td button:first-child:hover {
+      background: #1e8449;
+    }
+    td button:last-child {
+      background: #e74c3c;
+    }
+    td button:last-child:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h2>📚 Student Data Management</h2>
+  <form id="studentForm">
+    <input type="text" id="name" placeholder="Enter Name" required>
+    <input type="text" id="rollNumber" placeholder="Enter Roll Number" required>
+    <button type="submit">Save</button>
+  </form>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Roll Number</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="studentTable"></tbody>
+  </table>
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrTCFF9sckrQE_GQSXbpVqjMzmuiAZHcI8-7vt8MvVTB5QLN3m9OrPfSuI9_zse-R0pw/exec"; 
+    const form = document.getElementById("studentForm");
+    const nameInput = document.getElementById("name");
+    const rollInput = document.getElementById("rollNumber");
+    const tableBody = document.getElementById("studentTable");
+    let students = [];
+    let editIndex = null;
+    let oldRollNumber = null;
+
+    async function fetchStudents() {
+      const res = await fetch(SCRIPT_URL);
+      students = await res.json();
+      students.sort((a, b) => a.rollNumber - b.rollNumber);
+      renderTable();
+    }
+
+    function renderTable() {
+      tableBody.innerHTML = "";
+      students.forEach((student, index) => {
+        const row = `<tr>
+          <td>${student.name}</td>
+          <td>${student.rollNumber}</td>
+          <td>
+            <button onclick="editStudent(${index})">Edit</button>
+            <button onclick="deleteStudent('${student.rollNumber}')">Delete</button>
+          </td>
+        </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      const rollNumber = rollInput.value.trim();
+      await fetchStudents();
+      if (editIndex === null) {
+        const exists = students.some(s => s.rollNumber === rollNumber);
+        if (exists) {
+          alert("⚠️ Roll Number already exists. Please enter a unique roll number.");
+          return;
+        }
+        await fetch(SCRIPT_URL + `?action=add&name=${encodeURIComponent(name)}&rollNumber=${encodeURIComponent(rollNumber)}`, { method: "POST" });
+      } else {
+        const exists = students.some((s, idx) => s.rollNumber === rollNumber && idx !== editIndex);
+        if (exists) {
+          alert("⚠️ Roll Number already exists. Please choose a different one.");
+          return;
+        }
+        await fetch(SCRIPT_URL + `?action=edit&name=${encodeURIComponent(name)}&rollNumber=${encodeURIComponent(rollNumber)}&oldRollNumber=${encodeURIComponent(oldRollNumber)}`, { method: "POST" });
+        editIndex = null;
+        oldRollNumber = null;
+      }
+      form.reset();
+      fetchStudents();
+    });
+
+    function editStudent(index) {
+      const student = students[index];
+      nameInput.value = student.name;
+      rollInput.value = student.rollNumber;
+      editIndex = index;
+      oldRollNumber = student.rollNumber;
+    }
+
+    async function deleteStudent(rollNumber) {
+      await fetch(SCRIPT_URL + `?action=delete&rollNumber=${encodeURIComponent(rollNumber)}`, { method: "POST" });
+      fetchStudents();
+    }
+
+    fetchStudents();
+  </script>
+</body>
+</html>
